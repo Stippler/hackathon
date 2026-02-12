@@ -60,3 +60,6 @@ data/state/
 !data/out/*.csv
 !data/out/by_letter/
 !data/out/by_letter/*.csv
+
+debug/*
+data/*
