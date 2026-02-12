@@ -50,3 +50,13 @@ yarn-error.log*
 *.tmp
 *.temp
 .pytest_cache/
+
+.venv
+
+# Crawler data (ignore HTML and state files, but keep CSVs)
+data/sites/
+data/state/
+!data/out/
+!data/out/*.csv
+!data/out/by_letter/
+!data/out/by_letter/*.csv
