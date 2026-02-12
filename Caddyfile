@@ -1,0 +1,68 @@
+# Supabase configuration (existing)
+supabase.christian-stippel.com {
+	reverse_proxy 127.0.0.1:8000
+}
+
+studio.supabase.christian-stippel.com {
+	basic_auth {
+		admin $2a$14$IxDX/k/Z2TDFe3I1/9EjHuwjkdrk.Ju6hornihfwsk4zYGgikOV2S
+	}
+	reverse_proxy 127.0.0.1:3001
+}
+
+# Production App - Main domain (ponyo user)
+app.christian-stippel.com {
+	reverse_proxy 127.0.0.1:3010
+}
+
+# Production API - Main domain (ponyo user)
+api.christian-stippel.com {
+	reverse_proxy 127.0.0.1:8010 {
+		# Enable streaming for SSE (disable buffering)
+		flush_interval -1
+	}
+}
+
+# Ponyo User - Same as production
+app.ponyo.christian-stippel.com {
+	reverse_proxy 127.0.0.1:3010
+}
+
+api.ponyo.christian-stippel.com {
+	reverse_proxy 127.0.0.1:8010 {
+		flush_interval -1
+	}
+}
+
+# Pompoko User
+app.pompoko.christian-stippel.com {
+	reverse_proxy 127.0.0.1:3020
+}
+
+api.pompoko.christian-stippel.com {
+	reverse_proxy 127.0.0.1:8020 {
+		flush_interval -1
+	}
+}
+
+# Porcorosso User
+app.porcorosso.christian-stippel.com {
+	reverse_proxy 127.0.0.1:3030
+}
+
+api.porcorosso.christian-stippel.com {
+	reverse_proxy 127.0.0.1:8030 {
+		flush_interval -1
+	}
+}
+
+# Spiritedaway User
+app.spiritedaway.christian-stippel.com {
+	reverse_proxy 127.0.0.1:3040
+}
+
+api.spiritedaway.christian-stippel.com {
+	reverse_proxy 127.0.0.1:8040 {
+		flush_interval -1
+	}
+}

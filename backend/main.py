@@ -6,6 +6,36 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Get configuration from environment variables
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+BACKEND_PORT = int(os.getenv("BACKEND_PORT", "8010"))
+BACKEND_HOST = os.getenv("BACKEND_HOST", "0.0.0.0")
+FRONTEND_PORT = int(os.getenv("FRONTEND_PORT", "3010"))
+
+# Optional: Supabase configuration
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+# Validate required environment variables
+if not OPENAI_API_KEY:
+    raise ValueError("OPENAI_API_KEY environment variable is required")
+
+# Set OpenAI API key for DSPy
+os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+
+print(f"✓ Configuration loaded:")
+print(f"  - Backend: {BACKEND_HOST}:{BACKEND_PORT}")
+print(f"  - Frontend expected on port: {FRONTEND_PORT}")
+if SUPABASE_URL:
+    print(f"  - Supabase: {SUPABASE_URL}")
+else:
+    print(f"  - Supabase: Not configured")
 
 # 1) Completely disable caching
 dspy.cache = None
@@ -26,20 +56,16 @@ print("✓ DSPy configured")
 
 app = FastAPI()
 
-# Add CORS middleware
+# Add CORS middleware - permissive configuration for public access
+# Allow all origins so people can access from anywhere
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000", 
-        "http://127.0.0.1:3000",
-        "http://localhost:3010",
-        "http://127.0.0.1:3010",
-        "http://0.0.0.0:3010",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=False,  # Must be False when allow_origins is ["*"]
     allow_methods=["*"],
     allow_headers=["*"],
 )
+print("✓ CORS enabled for all origins (permissive mode)")
 
 class ChatReq(BaseModel):
     message: str
@@ -141,3 +167,17 @@ async def chat_stream(req: ChatReq, request: Request):
             "X-Accel-Buffering": "no",  # Disable nginx buffering
         }
     )
+
+# Allow running directly with: python main.py
+if __name__ == "__main__":
+    import uvicorn
+    print(f"\n🚀 Starting server on {BACKEND_HOST}:{BACKEND_PORT}")
+    uvicorn.run(
+        "main:app",
+        host=BACKEND_HOST,
+        port=BACKEND_PORT,
+        reload=True,
+        reload_dirs=["./"],
+        log_level="info"
+    )
+
