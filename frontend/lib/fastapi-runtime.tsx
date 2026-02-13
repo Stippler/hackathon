@@ -70,6 +70,7 @@ export function createFastAPIAdapter({
 
       let fullText = "";
       const chunks: string[] = [];
+      const managerChunks: string[] = [];
       let streamEnded = false;
       let streamError: Error | null = null;
       let wasAborted = false;
@@ -78,6 +79,10 @@ export function createFastAPIAdapter({
       let animatingFinalFallback = false;
       let latestStatusLine = "";
       let thinkingText = "";
+      const latestStatusByAgent: Record<string, string> = {};
+      const thinkingByAgent: Record<string, string> = {};
+      const draftByAgent: Record<string, string> = {};
+      const finalByAgent: Record<string, string> = {};
       let hasUiUpdate = false;
       let shouldShowActivity = true;
       let lastHeartbeatAt = Date.now();
@@ -122,23 +127,31 @@ export function createFastAPIAdapter({
             return;
           }
           const payload = data as Record<string, unknown>;
+          const payloadAgentId =
+            typeof payload.agent_id === "string" && payload.agent_id.trim().length > 0
+              ? payload.agent_id.trim()
+              : "manager";
 
           if (payload.type === "answer_token" && typeof payload.data === "object" && payload.data !== null) {
             const text = (payload.data as Record<string, unknown>).text;
             if (typeof text !== "string") {
               return;
             }
-            receivedAnswerToken = true;
-            shouldShowActivity = false;
-            latestStatusLine = "";
-            thinkingText = "";
-            chunks.push(text);
+            draftByAgent[payloadAgentId] = (draftByAgent[payloadAgentId] || "") + text;
+            if (payloadAgentId === "manager") {
+              receivedAnswerToken = true;
+              shouldShowActivity = false;
+              latestStatusLine = "";
+              thinkingText = "";
+              managerChunks.push(text);
+            }
           }
 
           if (payload.type === "tool_start" && typeof payload.data === "object" && payload.data !== null) {
             const info = payload.data as Record<string, unknown>;
             const tool = typeof info.tool === "string" ? info.tool : "tool";
             setLatestStatus(`[tool:start] ${tool}`);
+            latestStatusByAgent[payloadAgentId] = `[tool:start] ${tool}`;
             hasUiUpdate = true;
           }
 
@@ -146,6 +159,7 @@ export function createFastAPIAdapter({
             const info = payload.data as Record<string, unknown>;
             const rowsCount = typeof info.rows_count === "number" ? ` rows=${info.rows_count}` : "";
             setLatestStatus(`[tool:end]${rowsCount}`);
+            latestStatusByAgent[payloadAgentId] = `[tool:end]${rowsCount}`;
             hasUiUpdate = true;
           }
 
@@ -154,6 +168,7 @@ export function createFastAPIAdapter({
             const table = typeof info.table === "string" ? info.table : "source";
             const rowsCount = typeof info.rows_count === "number" ? info.rows_count : 0;
             setLatestStatus(`[retrieve] ${table} rows=${rowsCount}`);
+            latestStatusByAgent[payloadAgentId] = `[retrieve] ${table} rows=${rowsCount}`;
             hasUiUpdate = true;
           }
 
@@ -164,8 +179,10 @@ export function createFastAPIAdapter({
             if (text) {
               if (source === "next_thought" || source === "reasoning") {
                 thinkingText += text;
+                thinkingByAgent[payloadAgentId] = (thinkingByAgent[payloadAgentId] || "") + text;
               } else {
                 setLatestStatus(text);
+                latestStatusByAgent[payloadAgentId] = text.trim();
               }
             }
             hasUiUpdate = true;
@@ -174,6 +191,7 @@ export function createFastAPIAdapter({
           if (payload.type === "final" && typeof payload.data === "object" && payload.data !== null) {
             const info = payload.data as Record<string, unknown>;
             const answer = typeof info.answer === "string" ? info.answer : "";
+            finalByAgent[payloadAgentId] = answer;
             finalAnswer = answer;
             if (!receivedAnswerToken && chunks.length === 0 && fullText.length === 0) {
               const syntheticChunks = answer.match(/\S+\s*|\n/g) ?? [answer];
@@ -235,6 +253,15 @@ export function createFastAPIAdapter({
               animatingFinalFallback = false;
             }
           }
+          if (managerChunks.length > 0) {
+            const maxChunks = animatingFinalFallback ? 1 : managerChunks.length;
+            for (let i = 0; i < maxChunks; i += 1) {
+              const chunk = managerChunks.shift();
+              if (!chunk) break;
+              fullText += chunk;
+              hasUiUpdate = true;
+            }
+          }
 
           if (hasUiUpdate) {
             let displayText = fullText;
@@ -248,6 +275,18 @@ export function createFastAPIAdapter({
                 `status: ${statusLine}\n\n` +
                 `thinking:\n${thinkingPanel}\n\n` +
                 `${fullText}`;
+            }
+
+            const workerIds = Object.keys(draftByAgent).filter((id) => id !== "manager");
+            if (workerIds.length > 0) {
+              const sections = workerIds.map((id) => {
+                const status = latestStatusByAgent[id] || "[working]";
+                const thought = (thinkingByAgent[id] || "").trim();
+                const draft = (draftByAgent[id] || "").trim() || (finalByAgent[id] || "").trim() || "...";
+                const thoughtBlock = thought ? `thinking:\n_${thought}_\n\n` : "";
+                return `### ${id} agent\nstatus: ${status}\n\n${thoughtBlock}${draft}`;
+              });
+              displayText = `${displayText}\n\n---\n\n${sections.join("\n\n")}`;
             }
             yield {
               content: [{ type: "text", text: displayText }],

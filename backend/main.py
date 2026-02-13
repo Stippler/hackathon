@@ -201,8 +201,8 @@ async def chat_stream(req: ChatReq, request: Request):
                     break
 
                 event_type = str(event.get("type", "")).strip() or "trace_token"
-                # Backend contract: always emit manager as agent_id.
-                agent_id = default_agent_id
+                event_agent_id = str(event.get("agent_id", "")).strip()
+                agent_id = event_agent_id or default_agent_id
                 data = event.get("data", {})
                 if not isinstance(data, dict):
                     data = {"value": data}

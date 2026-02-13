@@ -187,10 +187,21 @@ export function ChatInterface({ backendUrl, supabaseUrl, supabaseAnonKey }: Chat
                 AssistantMessage: () => {
                   const contentRef = useRef<HTMLDivElement>(null);
                   const [agentState, setAgentState] = useState("manager");
+                  const agentIcon = useMemo(() => {
+                    const state = agentState.toLowerCase();
+                    if (state.includes("projectfacts")) return "/projectfacts.png";
+                    if (state.includes("wko")) return "/wko.png";
+                    return "/manager.png";
+                  }, [agentState]);
 
                   useEffect(() => {
                     const readStateFromContent = () => {
                       const text = contentRef.current?.textContent || "";
+                      const workerMatch = text.match(/###\s*(wko|projectfacts|evi)\s+agent/i);
+                      if (workerMatch?.[1]) {
+                        setAgentState(`${workerMatch[1].toLowerCase()} agent`);
+                        return;
+                      }
                       const match = text.match(/status:\s*([^\n]+)/i);
                       if (match?.[1]) {
                         setAgentState(match[1].trim());
@@ -216,8 +227,8 @@ export function ChatInterface({ backendUrl, supabaseUrl, supabaseAnonKey }: Chat
                       <div className="mr-0 flex w-auto flex-col items-start gap-3 sm:mr-6 sm:flex-row">
                         <div className="mt-0 flex w-full shrink-0 flex-row items-center gap-2 sm:mt-1 sm:w-[88px] sm:flex-col sm:items-center sm:gap-0">
                           <Image
-                            src="/manager.png"
-                            alt="manager"
+                            src={agentIcon}
+                            alt={agentState}
                             width={52}
                             height={52}
                             className="hidden rounded-full object-contain opacity-95 sm:block"
