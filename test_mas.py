@@ -1,1 +1,0 @@
-#Das war Müll was die KI am Anfang geschrieben hat. Siehe für funktionierenden Code mas.ipynb

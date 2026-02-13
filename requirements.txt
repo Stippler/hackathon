@@ -5,3 +5,9 @@ lxml
 dspy
 pydantic
 pandas
+fastapi
+uvicorn
+playwright
+supabase
+openpyxl
+python-dotenv
