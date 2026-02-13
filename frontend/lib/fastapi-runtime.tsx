@@ -10,6 +10,9 @@ type FastAPIAdapterConfig = {
   supabaseAnonKey: string;
 };
 
+const SSE_IDLE_TIMEOUT_MS = 45000;
+const SSE_OVERALL_TIMEOUT_MS = 180000;
+
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
 }
@@ -82,6 +85,15 @@ export function createFastAPIAdapter({
       let shouldShowActivity = true;
       let lastHeartbeatAt = Date.now();
       const streamStartedAt = Date.now();
+      let lastServerEventAt = Date.now();
+      let timedOut = false;
+      let overallTimedOut = false;
+      const requestController = new AbortController();
+
+      const abortFromCaller = () => {
+        requestController.abort();
+      };
+      abortSignal.addEventListener("abort", abortFromCaller);
 
       const setLatestStatus = (line: string) => {
         const lines = line
@@ -108,7 +120,7 @@ export function createFastAPIAdapter({
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ message: userMessage, history }),
-        signal: abortSignal,
+        signal: requestController.signal,
 
         onmessage(ev) {
           let data: unknown;
@@ -122,6 +134,7 @@ export function createFastAPIAdapter({
             return;
           }
           const payload = data as Record<string, unknown>;
+          lastServerEventAt = Date.now();
 
           if (payload.type === "answer_token" && typeof payload.data === "object" && payload.data !== null) {
             const text = (payload.data as Record<string, unknown>).text;
@@ -199,8 +212,16 @@ export function createFastAPIAdapter({
         },
 
         onerror(err) {
-          if (isAbortError(err)) {
+          if (isAbortError(err) && !timedOut && !overallTimedOut) {
             wasAborted = true;
+            streamEnded = true;
+            return;
+          }
+          if (isAbortError(err) && (timedOut || overallTimedOut)) {
+            const reason = overallTimedOut
+              ? "The agent took too long to respond. Please try again."
+              : "The agent stopped responding. Please try again.";
+            streamError = new Error(reason);
             streamEnded = true;
             return;
           }
@@ -263,6 +284,20 @@ export function createFastAPIAdapter({
           // Keep UI alive during long LM/tool waits with heartbeat updates.
           if (!streamEnded && shouldShowActivity && !receivedAnswerToken && !hasUiUpdate) {
             const now = Date.now();
+            if (now - lastServerEventAt >= SSE_IDLE_TIMEOUT_MS) {
+              timedOut = true;
+              streamError = new Error("The agent stopped responding. Please try again.");
+              streamEnded = true;
+              requestController.abort();
+              continue;
+            }
+            if (now - streamStartedAt >= SSE_OVERALL_TIMEOUT_MS) {
+              overallTimedOut = true;
+              streamError = new Error("The agent took too long to respond. Please try again.");
+              streamEnded = true;
+              requestController.abort();
+              continue;
+            }
             if (now - lastHeartbeatAt >= 2000) {
               const elapsedSeconds = Math.max(1, Math.floor((now - streamStartedAt) / 1000));
               setLatestStatus(`[working] still thinking... (${elapsedSeconds}s)`);
@@ -309,7 +344,24 @@ export function createFastAPIAdapter({
           };
           return;
         }
+        if (error instanceof Error) {
+          const msg = error.message.toLowerCase();
+          if (msg.includes("stopped responding") || msg.includes("too long")) {
+            yield {
+              content: [
+                {
+                  type: "text",
+                  text:
+                    "The agent is taking too long right now. Please retry your message. If this keeps happening, restart the backend service.",
+                },
+              ],
+            };
+            return;
+          }
+        }
         throw error;
+      } finally {
+        abortSignal.removeEventListener("abort", abortFromCaller);
       }
     },
   };

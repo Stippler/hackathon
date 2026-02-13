@@ -4,28 +4,28 @@ from typing import Any, Dict, List, Optional, Set
 from mas.db import _request_user_context
 
 OFB_TABLES: Dict[str, str] = {
-    "ofb_crawl_queue": "Continuous crawl queue and scheduling state.",
-    "ofb_companies": "Canonical company rows keyed by firmennummer.",
-    "ofb_company_source_links": "Mappings from source datasets to firmennummer.",
-    "ofb_search_runs": "Raw API search requests/responses.",
-    "ofb_search_results": "Search matches per run.",
-    "ofb_search_result_changes": "Historical change snippets from search results.",
-    "ofb_auszug_snapshots": "Register extract snapshots by stichtag.",
-    "ofb_auszug_vollz": "Register event history (VNR-level).",
-    "ofb_auszug_euid": "EUID mappings.",
-    "ofb_auszug_fun": "Role/function entries linked to persons.",
-    "ofb_auszug_fun_dkz10": "Representation authority details.",
-    "ofb_auszug_per": "Persons by PNR.",
-    "ofb_auszug_per_dkz02": "Person identity details.",
-    "ofb_auszug_firma_dkz02": "Company name blocks.",
-    "ofb_auszug_firma_dkz03": "Address blocks.",
-    "ofb_auszug_firma_dkz06": "Seat blocks.",
-    "ofb_auszug_firma_dkz07": "Legal form blocks.",
-    "ofb_financial_years": "Fiscal-year wrappers.",
-    "ofb_financial_bilanz": "Balance-sheet values.",
-    "ofb_financial_guv": "P&L values including revenue.",
-    "ofb_financial_kennzahlen_bilanz": "Balance-sheet KPIs.",
-    "ofb_financial_kennzahlen_guv": "P&L KPIs.",
+    "ofb_crawl_queue": "Continuous crawl queue with source, status, and scheduling state.",
+    "ofb_companies": "Canonical company rows keyed by firmennummer with normalized identity fields.",
+    "ofb_company_source_links": "Mappings from upstream source datasets to firmennummer.",
+    "ofb_search_runs": "Stored API search requests and response metadata.",
+    "ofb_search_results": "Per-run search matches returned by the API.",
+    "ofb_search_result_changes": "Historical change snippets attached to search results.",
+    "ofb_auszug_snapshots": "Register extract snapshots by stichtag and scope.",
+    "ofb_auszug_vollz": "Register event history at VNR/event level.",
+    "ofb_auszug_euid": "EUID identifiers and mappings.",
+    "ofb_auszug_fun": "Role/function entries linked to people records.",
+    "ofb_auszug_fun_dkz10": "Representation authority details for function entries.",
+    "ofb_auszug_per": "Person entities keyed by PNR.",
+    "ofb_auszug_per_dkz02": "Person identity and name detail blocks.",
+    "ofb_auszug_firma_dkz02": "Company name blocks from extract records.",
+    "ofb_auszug_firma_dkz03": "Company address blocks from extract records.",
+    "ofb_auszug_firma_dkz06": "Company seat/location blocks from extract records.",
+    "ofb_auszug_firma_dkz07": "Company legal-form blocks from extract records.",
+    "ofb_financial_years": "Fiscal-year wrapper rows per firmennummer.",
+    "ofb_financial_bilanz": "Balance-sheet values by financial year.",
+    "ofb_financial_guv": "Profit-and-loss values, including revenue fields.",
+    "ofb_financial_kennzahlen_bilanz": "Balance-sheet KPI metrics by financial year.",
+    "ofb_financial_kennzahlen_guv": "Profit-and-loss KPI metrics by financial year.",
 }
 
 
@@ -67,13 +67,13 @@ def _year_from_iso(ts: Any) -> Optional[int]:
 
 
 def ofb_list_tables() -> Dict[str, Any]:
-    """List OpenFirmenbuch-specific tables and descriptions."""
+    """List OpenFirmenbuch-specific tables with concise descriptions of what each table stores."""
     tables = [{"table": name, "description": desc} for name, desc in sorted(OFB_TABLES.items())]
     return {"ok": True, "count": len(tables), "tables": tables}
 
 
 def ofb_source_overview() -> Dict[str, Any]:
-    """Show crawl/source coverage stats across queue and source links."""
+    """Summarize crawl and source coverage metrics across queue and source-link tables."""
     try:
         client = _get_supabase_client()
         queue_resp = client.table("ofb_crawl_queue").select("status,source_system").limit(2000).execute()
@@ -123,8 +123,8 @@ def ofb_joined_company_screen(
     limit: int = 20,
 ) -> Dict[str, Any]:
     """
-    Joined company screen with filters across ofb_companies + source links + latest financials.
-    Supports filters for name, revenue (umsatzerloese), equity ratio, status, legal form, and source.
+    Return a joined company screening view across canonical company rows, source links, and latest financials.
+    Supports filters for name, revenue (umsatzerloese), equity ratio, status, legal form, source system, and year.
     """
     try:
         client = _get_supabase_client()
@@ -316,8 +316,8 @@ def ofb_company_full_view(
     include_history: bool = True,
 ) -> Dict[str, Any]:
     """
-    Full joined company view: canonical row, source links, latest snapshot,
-    people + roles, and recent financial years.
+    Build a comprehensive single-company view with canonical data, source links, latest snapshot details,
+    people and roles, recent financial years, and optional register history.
     """
     try:
         client = _get_supabase_client()
@@ -502,8 +502,8 @@ def ofb_find_companies_missing_financials(
     limit: int = 50,
 ) -> Dict[str, Any]:
     """
-    Find crawled companies that have snapshots but still no financial years,
-    useful for retry/backfill lists.
+    Find crawled companies that already have register snapshots but still lack financial-year records,
+    useful for retry and backfill candidate lists.
     """
     try:
         client = _get_supabase_client()

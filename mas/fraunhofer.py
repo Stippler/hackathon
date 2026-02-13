@@ -238,18 +238,18 @@ def _safe_area_lookup(area: str) -> Dict[str, Any]:
 
 
 def fraunhofer_service_areas() -> Dict[str, Any]:
-    """List available Fraunhofer service areas and titles."""
+    """List available Fraunhofer service areas with their human-readable titles."""
     areas = [{"key": key, "title": value["title"]} for key, value in sorted(_SERVICE_AREAS.items())]
     return {"ok": True, "count": len(areas), "areas": areas}
 
 
 def fraunhofer_overview() -> Dict[str, Any]:
-    """Return high-level positioning and core methods."""
+    """Return high-level Fraunhofer positioning plus core methods and consulting profile."""
     return {"ok": True, "overview": _FRAUNHOFER_OVERVIEW}
 
 
 def fraunhofer_area_details(area: str) -> Dict[str, Any]:
-    """Return full details for one service area."""
+    """Return detailed content for one service area, including methods, project types, value, and industries."""
     try:
         details = _safe_area_lookup(area)
         return {"ok": True, "area": _normalize_key(area), "details": details}
@@ -258,7 +258,7 @@ def fraunhofer_area_details(area: str) -> Dict[str, Any]:
 
 
 def fraunhofer_value_drivers(area: str = "") -> Dict[str, Any]:
-    """Return quantified and qualitative value points, optionally per area."""
+    """Return key value drivers (quantified and qualitative), either overall or scoped to one area."""
     try:
         if area.strip():
             details = _safe_area_lookup(area)
@@ -269,7 +269,7 @@ def fraunhofer_value_drivers(area: str = "") -> Dict[str, Any]:
 
 
 def fraunhofer_methods(area: str = "") -> Dict[str, Any]:
-    """Return methods used overall or in a selected area."""
+    """Return methods used across the portfolio or within a selected service area."""
     try:
         if area.strip():
             details = _safe_area_lookup(area)
@@ -280,7 +280,7 @@ def fraunhofer_methods(area: str = "") -> Dict[str, Any]:
 
 
 def fraunhofer_industries(area: str = "") -> Dict[str, Any]:
-    """Return industries overall or industries addressed by one area."""
+    """Return industries served overall or the industries addressed by a specific area."""
     try:
         if area.strip():
             details = _safe_area_lookup(area)
@@ -291,7 +291,7 @@ def fraunhofer_industries(area: str = "") -> Dict[str, Any]:
 
 
 def fraunhofer_project_types(area: str) -> Dict[str, Any]:
-    """Return typical project types for one service area."""
+    """Return representative project types typically delivered in one service area."""
     try:
         details = _safe_area_lookup(area)
         return {"ok": True, "area": _normalize_key(area), "project_types": details.get("project_types", [])}

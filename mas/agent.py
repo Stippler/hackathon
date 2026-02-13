@@ -50,7 +50,7 @@ logging.getLogger("dspy.utils.callback").setLevel(logging.ERROR)
 
 class ToolQA(dspy.Signature):
     """
-    Helpful assistant that can think step-by-step and call tools when needed.
+    Helpful assistant that reasons step-by-step and calls tools whenever they can improve accuracy.
     Tool usage rules:
     - For arithmetic or numeric expressions, call `calculator` before answering.
     - For current time/date requests, call `current_datetime` before answering.
@@ -78,7 +78,7 @@ class ToolQA(dspy.Signature):
       - Use `ofb_find_companies_missing_financials` to generate retry/backfill candidate lists.
     - For Fraunhofer service areas and positioning, call `fraunhofer_service_areas` or `fraunhofer_overview`.
     - For Fraunhofer methods, industries, project types, and value points, call `fraunhofer_methods`, `fraunhofer_industries`, `fraunhofer_project_types`, `fraunhofer_value_drivers`, or `fraunhofer_area_details`.
-    - Prefer tool outputs over guesses whenever a tool can answer directly.
+    - Prefer tool-backed answers over guesses whenever a tool can answer directly.
     """
 
     user_request: str = dspy.InputField()

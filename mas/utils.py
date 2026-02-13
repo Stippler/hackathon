@@ -168,7 +168,7 @@ def _safe_eval_expr(expression: str) -> float:
 
 
 def calculator(expression: str) -> dict[str, Any]:
-    """Evaluate safe math expressions, e.g. 2*(5+3) or sqrt(81)."""
+    """Safely evaluate arithmetic expressions (for example `2*(5+3)` or `sqrt(81)`)."""
     expr = (expression or "").strip()
     if not expr:
         return {"ok": False, "error": "Missing expression"}
@@ -180,7 +180,7 @@ def calculator(expression: str) -> dict[str, Any]:
 
 
 def current_datetime(timezone: str = "UTC") -> dict[str, str]:
-    """Get current ISO datetime in UTC or local."""
+    """Return the current ISO-8601 datetime in UTC (default) or local timezone."""
     tz = (timezone or "UTC").strip().lower()
     if tz == "local":
         now = dt.datetime.now().astimezone()

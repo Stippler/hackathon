@@ -83,6 +83,7 @@ def sse_event(obj: dict) -> str:
 
 
 PING = ": ping\n\n"
+STREAM_EVENT_IDLE_TIMEOUT_SECONDS = 60
 
 
 def _verify_supabase_token_sync(access_token: str) -> Optional[dict]:
@@ -195,7 +196,30 @@ async def chat_stream(req: ChatReq, request: Request):
 
             # Periodic ping helps keep some proxies from buffering.
             last_ping = asyncio.get_event_loop().time()
-            async for event in stream:
+            while True:
+                try:
+                    event = await asyncio.wait_for(
+                        stream.__anext__(),
+                        timeout=STREAM_EVENT_IDLE_TIMEOUT_SECONDS,
+                    )
+                except StopAsyncIteration:
+                    break
+                except asyncio.TimeoutError:
+                    yield sse_event(
+                        {
+                            "type": "error",
+                            "run_id": run_id,
+                            "agent_id": default_agent_id,
+                            "data": {
+                                "message": (
+                                    "The agent timed out waiting for a response. "
+                                    "Please try again."
+                                )
+                            },
+                        }
+                    )
+                    break
+
                 if await request.is_disconnected():
                     client_disconnected = True
                     break

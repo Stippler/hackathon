@@ -10,19 +10,19 @@ _request_user_context: contextvars.ContextVar[Optional[Dict[str, Any]]] = contex
 
 KNOWN_TABLES: Dict[str, Dict[str, Any]] = {
     "wko_branches": {
-        "description": "WKO branch taxonomy catalog.",
+        "description": "WKO branch taxonomy catalog used for category and crawl coverage context.",
         "key_columns": ["branche", "branch_url", "letter", "source", "discovered_at"],
     },
     "wko_companies": {
-        "description": "WKO company directory with contact and crawl fields.",
+        "description": "WKO company directory including contact data and crawl metadata.",
         "key_columns": ["branche", "name", "email", "phone", "address", "wko_detail_url", "crawled_at"],
     },
     "projectfacts": {
-        "description": "Structured company profile table with segmentation fields.",
+        "description": "Structured company profile table with segmentation and activity attributes.",
         "key_columns": ["name", "city", "country", "industries", "size", "last_activity_at"],
     },
     "evi_bilanz_publications": {
-        "description": "EVI publication events, including company and publication metadata.",
+        "description": "EVI publication events with company identifiers and publication metadata.",
         "key_columns": ["publication_date", "publication_type", "company_name", "firmenbuchnummer", "detail_url"],
     },
 }
@@ -41,7 +41,7 @@ def reset_request_user_context(token: contextvars.Token) -> None:
 
 
 def current_user_profile() -> Dict[str, Any]:
-    """Return authenticated user profile from current request context."""
+    """Return the authenticated user profile available in the current request context."""
     ctx = _request_user_context.get() or {}
     return {
         "authenticated": bool(ctx),
@@ -52,7 +52,7 @@ def current_user_profile() -> Dict[str, Any]:
 
 
 def list_known_tables() -> Dict[str, Any]:
-    """List known catalog tables and short descriptions."""
+    """List the known data catalog tables with short purpose descriptions."""
     tables = [
         {"table": name, "description": meta["description"]}
         for name, meta in sorted(KNOWN_TABLES.items())
@@ -61,7 +61,7 @@ def list_known_tables() -> Dict[str, Any]:
 
 
 def describe_table(table: str) -> Dict[str, Any]:
-    """Describe one known table and key columns."""
+    """Describe one known table, including its intent and key columns."""
     table_name = (table or "").strip()
     meta = KNOWN_TABLES.get(table_name)
     if not meta:
@@ -70,7 +70,7 @@ def describe_table(table: str) -> Dict[str, Any]:
 
 
 def list_accessible_tables() -> Dict[str, Any]:
-    """Check which known tables are queryable for current user context."""
+    """Check which known tables are currently queryable for this user context."""
     ctx = _request_user_context.get() or {}
     supabase_client = ctx.get("supabase_client")
     if supabase_client is None:
@@ -123,7 +123,7 @@ def supabase_query(
     limit: int = 20,
 ) -> Dict[str, Any]:
     """
-    Query a Supabase table with optional filters/order/limit.
+    Run a guarded read query on a Supabase table with optional filters, sorting, and row limits.
     filters_json format: [{"column":"name","op":"ilike","value":"%fraunhofer%"}]
     """
     ctx = _request_user_context.get() or {}

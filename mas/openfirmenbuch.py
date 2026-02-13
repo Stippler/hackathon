@@ -48,7 +48,7 @@ def ofb_search_company_compressed(
     limit: int = 10,
 ) -> Dict[str, Any]:
     """
-    Search companies via /firmenbuch/suche/firma/compressed.
+    Search companies via `/firmenbuch/suche/firma/compressed` and return a compact result set for quick matching.
     """
     query = (firmenwortlaut or "").strip()
     if not query:
@@ -104,7 +104,7 @@ def ofb_get_register_extract(
     include_raw: bool = False,
 ) -> Dict[str, Any]:
     """
-    Fetch structured register extract via /firmenbuch/auszug.
+    Fetch a structured Firmenbuch register extract via `/firmenbuch/auszug` for a given company and date.
     """
     cleaned_fnr = (fnr or "").strip()
     if not cleaned_fnr:
@@ -146,7 +146,7 @@ def ofb_get_financials_multiple(
     limit_years: int = 5,
 ) -> Dict[str, Any]:
     """
-    Fetch financial statement data via /firmenbuch/urkunde/daten/multiple.
+    Fetch multi-year financial statement data via `/firmenbuch/urkunde/daten/multiple`.
     """
     cleaned_fnr = (fnr or "").strip()
     if not cleaned_fnr:
@@ -201,7 +201,7 @@ def ofb_get_company_profile(
     umfang: str = "Kurzinformation",
 ) -> Dict[str, Any]:
     """
-    Return concise company profile fields extracted from /firmenbuch/auszug.
+    Return a concise company profile distilled from `/firmenbuch/auszug` (name, seat, address, legal form).
     """
     extract_result = ofb_get_register_extract(fnr=fnr, stichtag=stichtag, umfang=umfang, include_raw=True)
     if not extract_result.get("ok"):
@@ -243,7 +243,7 @@ def ofb_get_management_roles(
     umfang: str = "Kurzinformation",
 ) -> Dict[str, Any]:
     """
-    Map FUN role entries to PER person records from /firmenbuch/auszug.
+    Map management/function entries (FUN) to person records (PER) from `/firmenbuch/auszug`.
     """
     extract_result = ofb_get_register_extract(fnr=fnr, stichtag=stichtag, umfang=umfang, include_raw=True)
     if not extract_result.get("ok"):
@@ -306,7 +306,7 @@ def ofb_get_company_report(
     include_financials: bool = True,
 ) -> Dict[str, Any]:
     """
-    Convenience tool: profile + management + optional financials for one FNR.
+    Convenience report tool: combine company profile, management roles, and optional financials for one FNR.
     """
     profile = ofb_get_company_profile(fnr=fnr, stichtag=stichtag, umfang=umfang)
     if not profile.get("ok"):

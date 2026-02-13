@@ -29,11 +29,12 @@ export function AppHeader() {
     if (!supabase) {
       return;
     }
+    const authClient = supabase;
 
     let isMounted = true;
 
     async function syncSession() {
-      const { session } = await getSessionSafe(supabase);
+      const { session } = await getSessionSafe(authClient);
       if (isMounted) {
         const hasSession = Boolean(session);
         setIsAuthenticated(hasSession);
@@ -47,7 +48,7 @@ export function AppHeader() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = authClient.auth.onAuthStateChange((_event, session) => {
       const hasSession = Boolean(session);
       setIsAuthenticated(hasSession);
       if (!hasSession) {

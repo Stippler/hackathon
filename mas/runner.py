@@ -35,11 +35,11 @@ def print_tool_guide(logger: Optional[RunLogger] = None) -> None:
         "=" * 90,
         "TOOL GUIDE",
         "=" * 90,
-        "- fraunhofer_lscm_focus: strategic profile (capabilities, industries, acquisition intent).",
-        "- select_rows: generic SELECT with filters/order/limit.",
-        "- evi_lookup: simple EVI search by company_name/firmenbuchnummer/date range.",
-        "- distinct_counts: frequency counts for one column.",
-        "- fuzzy_join: approximate join between two tables using name similarity.",
+        "- fraunhofer_lscm_focus: strategic profile with capabilities, industries, and acquisition relevance.",
+        "- select_rows: generic SELECT-style read with filters, sorting, and row limits.",
+        "- evi_lookup: focused EVI lookup by company name, Firmenbuch number, or publication date range.",
+        "- distinct_counts: quick frequency distribution for one selected column.",
+        "- fuzzy_join: approximate join between two tables using company-name similarity scoring.",
     ]
     for line in lines:
         print(line)
