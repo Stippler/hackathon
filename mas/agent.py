@@ -13,6 +13,9 @@ from mas.db import (
     list_accessible_tables,
     list_known_tables,
     reset_request_user_context,
+    search_projectfacts,
+    search_wko_branches,
+    search_wko_companies,
     set_request_user_context,
     supabase_query,
 )
@@ -57,6 +60,14 @@ class ToolQA(dspy.Signature):
     - For account questions (who am I, my email, my user id), call `current_user_profile`.
     - For table discovery and schema context, call `list_known_tables` or `describe_table`.
     - For read-only data access, call `supabase_query`.
+    - For explicit `projectfacts` searches, call `search_projectfacts`.
+    - For explicit `wko_companies` searches, call `search_wko_companies`.
+    - For explicit `wko_branches` (branchen) searches, call `search_wko_branches`.
+    - Tool selection priority for SQL data:
+      1) If user explicitly asks for projectfacts -> use `search_projectfacts`.
+      2) If user explicitly asks for WKO companies/company directory -> use `search_wko_companies`.
+      3) If user explicitly asks for branches/branchen -> use `search_wko_branches`.
+      4) Use `supabase_query` only for generic cross-table or advanced custom filter requests not covered above.
     - For Austrian company registry lookups by name, call `ofb_search_company_compressed`.
     - For detailed Firmenbuch extract data, call `ofb_get_register_extract`.
     - For balance sheet/P&L/KPI data, call `ofb_get_financials_multiple`.
@@ -202,6 +213,9 @@ def _get_base_agent(model_name: Optional[str] = None) -> dspy.ReAct:
                 describe_table,
                 list_accessible_tables,
                 supabase_query,
+                search_projectfacts,
+                search_wko_companies,
+                search_wko_branches,
                 ofb_list_tables,
                 ofb_source_overview,
                 ofb_joined_company_screen,

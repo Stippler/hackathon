@@ -186,17 +186,48 @@ export function ChatInterface({ backendUrl, supabaseUrl, supabaseAnonKey }: Chat
                 ),
                 AssistantMessage: () => {
                   const contentRef = useRef<HTMLDivElement>(null);
-                  const [agentState, setAgentState] = useState("manager");
+                  const [lastChunkVisual, setLastChunkVisual] = useState<"thinking" | "working" | "manager">("manager");
 
                   useEffect(() => {
-                    const readStateFromContent = () => {
-                      const text = contentRef.current?.textContent || "";
-                      const match = text.match(/status:\s*([^\n]+)/i);
-                      if (match?.[1]) {
-                        setAgentState(match[1].trim());
-                      } else {
-                        setAgentState("manager");
+                    const classifyChunk = (value: string): "thinking" | "working" | "manager" => {
+                      const normalized = value.toLowerCase();
+                      if (
+                        /\b(tool|tool use|module|function|call|action|execution|invoke|invocation)\b/.test(
+                          normalized,
+                        )
+                      ) {
+                        return "working";
                       }
+                      if (/\b(reasoning|reason|thinking|think|analysis|analyzing|plan|planning)\b/.test(normalized)) {
+                        return "thinking";
+                      }
+                      return "manager";
+                    };
+
+                    const readStateFromContent = () => {
+                      const text = (contentRef.current?.textContent || "").toLowerCase();
+                      const statusRegex = /status:\s*([^\n]+)/gi;
+                      const chunkRegex =
+                        /\b(reasoning|reason|thinking|think|analysis|analyzing|plan|planning|tool use|tool|module|function|call|action|execution|invoke|invocation)\b/gi;
+
+                      let latestIndex = -1;
+                      let latestVisual: "thinking" | "working" | "manager" = "manager";
+
+                      for (const match of text.matchAll(statusRegex)) {
+                        if (typeof match.index === "number" && match.index >= latestIndex) {
+                          latestIndex = match.index;
+                          latestVisual = classifyChunk(match[1] || "");
+                        }
+                      }
+
+                      for (const match of text.matchAll(chunkRegex)) {
+                        if (typeof match.index === "number" && match.index >= latestIndex) {
+                          latestIndex = match.index;
+                          latestVisual = classifyChunk(match[0] || "");
+                        }
+                      }
+
+                      setLastChunkVisual(latestVisual);
                     };
 
                     readStateFromContent();
@@ -213,27 +244,39 @@ export function ChatInterface({ backendUrl, supabaseUrl, supabaseAnonKey }: Chat
 
                   return (
                     <div className="mx-auto w-full max-w-5xl px-6 py-4">
-                      <div className="mr-0 flex w-auto flex-col items-start gap-3 sm:mr-6 sm:flex-row">
-                        <div className="mt-0 flex w-full shrink-0 flex-row items-center gap-2 sm:mt-1 sm:w-[88px] sm:flex-col sm:items-center sm:gap-0">
-                          <Image
-                            src="/manager.png"
-                            alt="manager"
-                            width={52}
-                            height={52}
-                            className="hidden rounded-full object-contain opacity-95 sm:block"
-                            style={{
-                              width: "clamp(42px, 4.2vw, 56px)",
-                              height: "clamp(42px, 4.2vw, 56px)",
-                            }}
-                            priority={false}
-                          />
-                          <div
-                            title={agentState}
-                            className="mt-0 max-w-full truncate text-left text-[10px] leading-4 text-gray-300 sm:mt-1 sm:max-w-[88px] sm:text-center"
-                          >
-                            {agentState}
+                      <div className="mr-0 flex w-auto flex-row items-end gap-3 sm:mr-6">
+                        <MessagePrimitive.If assistant last>
+                          <div className="mb-1 shrink-0">
+                            <AssistantIf condition={({ thread }) => thread.isRunning}>
+                              <Image
+                                src={lastChunkVisual === "working" ? "/working.png" : "/thinking.png"}
+                                alt={lastChunkVisual}
+                                width={108}
+                                height={108}
+                                className="object-contain opacity-95"
+                                style={{
+                                  width: "clamp(84px, 8vw, 116px)",
+                                  height: "clamp(84px, 8vw, 116px)",
+                                }}
+                                priority={false}
+                              />
+                            </AssistantIf>
+                            <AssistantIf condition={({ thread }) => !thread.isRunning}>
+                              <Image
+                                src="/manager.png"
+                                alt="manager"
+                                width={108}
+                                height={108}
+                                className="object-contain opacity-95"
+                                style={{
+                                  width: "clamp(84px, 8vw, 116px)",
+                                  height: "clamp(84px, 8vw, 116px)",
+                                }}
+                                priority={false}
+                              />
+                            </AssistantIf>
                           </div>
-                        </div>
+                        </MessagePrimitive.If>
                         <div className="min-w-0 flex-1 overflow-hidden rounded-2xl border border-emerald-300/20 bg-emerald-500/10 px-4 py-3">
                           <div className="overflow-x-auto">
                             <div

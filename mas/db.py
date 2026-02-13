@@ -175,3 +175,185 @@ def supabase_query(
         }
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
+
+
+def _safe_like(value: str) -> str:
+    txt = (value or "").strip()
+    return f"%{txt}%"
+
+
+def search_projectfacts(
+    name_query: str = "",
+    city_query: str = "",
+    industry_query: str = "",
+    country: str = "",
+    segment_country: str = "",
+    size: str = "",
+    last_activity_after: str = "",
+    limit: int = 20,
+) -> Dict[str, Any]:
+    """
+    Explicit search tool for the projectfacts table.
+    Supports fuzzy text filters and optional exact filters for segmentation fields.
+    """
+    ctx = _request_user_context.get() or {}
+    supabase_client = ctx.get("supabase_client")
+    if supabase_client is None:
+        return {"ok": False, "error": "Supabase client not available in request context"}
+
+    safe_limit = max(1, min(int(limit), 100))
+    try:
+        query = (
+            supabase_client.table("projectfacts")
+            .select(
+                "id,name,city,country,segment_country,industries,size,last_activity_at,company_address,search_text"
+            )
+        )
+
+        if (name_query or "").strip():
+            query = query.or_(
+                f"name.ilike.{_safe_like(name_query)},name_norm.ilike.{_safe_like(name_query)},search_text.ilike.{_safe_like(name_query)}"
+            )
+        if (city_query or "").strip():
+            query = query.or_(
+                f"city.ilike.{_safe_like(city_query)},city_norm.ilike.{_safe_like(city_query)},search_text.ilike.{_safe_like(city_query)}"
+            )
+        if (industry_query or "").strip():
+            query = query.or_(f"industries.ilike.{_safe_like(industry_query)},search_text.ilike.{_safe_like(industry_query)}")
+        if (country or "").strip():
+            query = query.eq("country", country.strip())
+        if (segment_country or "").strip():
+            query = query.eq("segment_country", segment_country.strip())
+        if (size or "").strip():
+            query = query.ilike("size", size.strip())
+        if (last_activity_after or "").strip():
+            query = query.gte("last_activity_at", last_activity_after.strip())
+
+        response = query.order("last_activity_at", desc=True).limit(safe_limit).execute()
+        rows = getattr(response, "data", None) or []
+        return {
+            "ok": True,
+            "table": "projectfacts",
+            "filters": {
+                "name_query": name_query,
+                "city_query": city_query,
+                "industry_query": industry_query,
+                "country": country,
+                "segment_country": segment_country,
+                "size": size,
+                "last_activity_after": last_activity_after,
+            },
+            "limit": safe_limit,
+            "rows": rows,
+        }
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+def search_wko_companies(
+    name_query: str = "",
+    branche_query: str = "",
+    address_query: str = "",
+    has_email: Optional[bool] = None,
+    has_website: Optional[bool] = None,
+    crawled_after: str = "",
+    limit: int = 20,
+) -> Dict[str, Any]:
+    """
+    Explicit search tool for the wko_companies table.
+    Supports company, branch, and address search plus simple contact-presence filters.
+    """
+    ctx = _request_user_context.get() or {}
+    supabase_client = ctx.get("supabase_client")
+    if supabase_client is None:
+        return {"ok": False, "error": "Supabase client not available in request context"}
+
+    safe_limit = max(1, min(int(limit), 100))
+    try:
+        query = supabase_client.table("wko_companies").select(
+            "id,branche,name,email,phone,company_website,address,wko_detail_url,crawled_at,search_text"
+        )
+
+        if (name_query or "").strip():
+            query = query.or_(f"name.ilike.{_safe_like(name_query)},search_text.ilike.{_safe_like(name_query)}")
+        if (branche_query or "").strip():
+            query = query.ilike("branche", _safe_like(branche_query))
+        if (address_query or "").strip():
+            query = query.or_(f"address.ilike.{_safe_like(address_query)},search_text.ilike.{_safe_like(address_query)}")
+        if has_email is True:
+            query = query.not_.is_("email", "null")
+        elif has_email is False:
+            query = query.is_("email", "null")
+        if has_website is True:
+            query = query.not_.is_("company_website", "null")
+        elif has_website is False:
+            query = query.is_("company_website", "null")
+        if (crawled_after or "").strip():
+            query = query.gte("crawled_at", crawled_after.strip())
+
+        response = query.order("crawled_at", desc=True).limit(safe_limit).execute()
+        rows = getattr(response, "data", None) or []
+        return {
+            "ok": True,
+            "table": "wko_companies",
+            "filters": {
+                "name_query": name_query,
+                "branche_query": branche_query,
+                "address_query": address_query,
+                "has_email": has_email,
+                "has_website": has_website,
+                "crawled_after": crawled_after,
+            },
+            "limit": safe_limit,
+            "rows": rows,
+        }
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+def search_wko_branches(
+    branche_query: str = "",
+    letter: str = "",
+    source_query: str = "",
+    discovered_after: str = "",
+    limit: int = 20,
+) -> Dict[str, Any]:
+    """
+    Explicit search tool for the wko_branches (branchen) table.
+    Supports branch-name lookup and optional letter/source/date filters.
+    """
+    ctx = _request_user_context.get() or {}
+    supabase_client = ctx.get("supabase_client")
+    if supabase_client is None:
+        return {"ok": False, "error": "Supabase client not available in request context"}
+
+    safe_limit = max(1, min(int(limit), 100))
+    try:
+        query = supabase_client.table("wko_branches").select(
+            "id,branche,branch_url,letter,source,discovered_at"
+        )
+        if (branche_query or "").strip():
+            query = query.ilike("branche", _safe_like(branche_query))
+        if (letter or "").strip():
+            query = query.eq("letter", letter.strip().upper())
+        if (source_query or "").strip():
+            query = query.ilike("source", _safe_like(source_query))
+        if (discovered_after or "").strip():
+            query = query.gte("discovered_at", discovered_after.strip())
+
+        response = query.order("discovered_at", desc=True).limit(safe_limit).execute()
+        rows = getattr(response, "data", None) or []
+        return {
+            "ok": True,
+            "table": "wko_branches",
+            "filters": {
+                "branche_query": branche_query,
+                "letter": letter,
+                "source_query": source_query,
+                "discovered_after": discovered_after,
+            },
+            "limit": safe_limit,
+            "rows": rows,
+        }
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
