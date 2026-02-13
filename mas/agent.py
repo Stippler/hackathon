@@ -16,6 +16,22 @@ from mas.db import (
     set_request_user_context,
     supabase_query,
 )
+from mas.db_ofb import (
+    ofb_company_full_view,
+    ofb_find_companies_missing_financials,
+    ofb_joined_company_screen,
+    ofb_list_tables,
+    ofb_source_overview,
+)
+from mas.fraunhofer import (
+    fraunhofer_area_details,
+    fraunhofer_industries,
+    fraunhofer_methods,
+    fraunhofer_overview,
+    fraunhofer_project_types,
+    fraunhofer_service_areas,
+    fraunhofer_value_drivers,
+)
 from mas.openfirmenbuch import (
     ofb_get_company_profile,
     ofb_get_company_report,
@@ -46,6 +62,22 @@ class ToolQA(dspy.Signature):
     - For balance sheet/P&L/KPI data, call `ofb_get_financials_multiple`.
     - For a concise company summary from Firmenbuch fields, call `ofb_get_company_profile`.
     - For management/representation mapping, call `ofb_get_management_roles`.
+    - For OpenFirmenbuch joined table analytics (name/revenue filters), call `ofb_joined_company_screen`.
+    - For a full joined record for one Firmenbuchnummer, call `ofb_company_full_view`.
+    - For crawl/source coverage stats, call `ofb_source_overview` or `ofb_list_tables`.
+    - For backfill candidates missing financials, call `ofb_find_companies_missing_financials`.
+    - OpenFirmenbuch table map and usage:
+      - `ofb_companies`: canonical company identity/status/legal form by `firmennummer`.
+      - `ofb_company_source_links` + `ofb_crawl_queue`: source provenance (WKO/EVI/Projectfacts), crawl status, and scheduling.
+      - `ofb_auszug_*`: register extract snapshots, people, roles, representation rules, addresses, seat, and legal-form history.
+      - `ofb_financial_years` + `ofb_financial_guv`: fiscal years and P&L fields (use `umsatzerloese` for revenue filters).
+      - `ofb_financial_bilanz` + `ofb_financial_kennzahlen_*`: balance values and KPI filtering (e.g. equity ratio).
+    - Query strategy for OpenFirmenbuch:
+      - Use `ofb_joined_company_screen` for multi-company filters (name/revenue/status/source/year).
+      - Use `ofb_company_full_view` for deep single-company drilldown by `firmennummer`.
+      - Use `ofb_find_companies_missing_financials` to generate retry/backfill candidate lists.
+    - For Fraunhofer service areas and positioning, call `fraunhofer_service_areas` or `fraunhofer_overview`.
+    - For Fraunhofer methods, industries, project types, and value points, call `fraunhofer_methods`, `fraunhofer_industries`, `fraunhofer_project_types`, `fraunhofer_value_drivers`, or `fraunhofer_area_details`.
     - Prefer tool outputs over guesses whenever a tool can answer directly.
     """
 
@@ -170,12 +202,24 @@ def _get_base_agent(model_name: Optional[str] = None) -> dspy.ReAct:
                 describe_table,
                 list_accessible_tables,
                 supabase_query,
+                ofb_list_tables,
+                ofb_source_overview,
+                ofb_joined_company_screen,
+                ofb_company_full_view,
+                ofb_find_companies_missing_financials,
                 ofb_search_company_compressed,
                 ofb_get_register_extract,
                 ofb_get_financials_multiple,
                 ofb_get_company_profile,
                 ofb_get_management_roles,
                 ofb_get_company_report,
+                fraunhofer_service_areas,
+                fraunhofer_overview,
+                fraunhofer_area_details,
+                fraunhofer_value_drivers,
+                fraunhofer_methods,
+                fraunhofer_industries,
+                fraunhofer_project_types,
             ],
             max_iters=10,
         )
@@ -296,7 +340,7 @@ async def stream_question_answer_async(
         if not final_answer:
             final_answer = "I could not generate a final answer. Please try again."
 
-        yield {"type": "final", "agent_id": "rag", "data": {"answer": final_answer}}
+        yield {"type": "final", "agent_id": "manager", "data": {"answer": final_answer}}
     except asyncio.CancelledError:
         if output_stream is not None:
             with contextlib.suppress(Exception):

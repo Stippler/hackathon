@@ -176,7 +176,7 @@ async def chat_stream(req: ChatReq, request: Request):
     """
     user_context = await require_authenticated_user(request)
     run_id = uuid.uuid4().hex
-    default_agent_id = "rag"
+    default_agent_id = "manager"
 
     async def gen():
         stream = None
@@ -201,7 +201,8 @@ async def chat_stream(req: ChatReq, request: Request):
                     break
 
                 event_type = str(event.get("type", "")).strip() or "trace_token"
-                agent_id = str(event.get("agent_id", default_agent_id)).strip() or default_agent_id
+                # Backend contract: always emit manager as agent_id.
+                agent_id = default_agent_id
                 data = event.get("data", {})
                 if not isinstance(data, dict):
                     data = {"value": data}

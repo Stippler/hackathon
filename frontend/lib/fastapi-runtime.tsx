@@ -84,9 +84,13 @@ export function createFastAPIAdapter({
       const streamStartedAt = Date.now();
 
       const setLatestStatus = (line: string) => {
-        const text = line.trim();
-        if (!text) return;
-        latestStatusLine = text;
+        const lines = line
+          .split("\n")
+          .map((part) => part.trim())
+          .filter(Boolean);
+        if (lines.length === 0) return;
+        const bracketLines = lines.filter((part) => part.startsWith("["));
+        latestStatusLine = bracketLines[bracketLines.length - 1] ?? lines[lines.length - 1];
       };
 
       const formatCursiveThinking = (text: string) =>
@@ -134,14 +138,14 @@ export function createFastAPIAdapter({
           if (payload.type === "tool_start" && typeof payload.data === "object" && payload.data !== null) {
             const info = payload.data as Record<string, unknown>;
             const tool = typeof info.tool === "string" ? info.tool : "tool";
-            setLatestStatus(`tool start: ${tool}`);
+            setLatestStatus(`[tool:start] ${tool}`);
             hasUiUpdate = true;
           }
 
           if (payload.type === "tool_end" && typeof payload.data === "object" && payload.data !== null) {
             const info = payload.data as Record<string, unknown>;
-            const rowsCount = typeof info.rows_count === "number" ? ` (rows: ${info.rows_count})` : "";
-            setLatestStatus(`tool end${rowsCount}`);
+            const rowsCount = typeof info.rows_count === "number" ? ` rows=${info.rows_count}` : "";
+            setLatestStatus(`[tool:end]${rowsCount}`);
             hasUiUpdate = true;
           }
 
@@ -149,7 +153,7 @@ export function createFastAPIAdapter({
             const info = payload.data as Record<string, unknown>;
             const table = typeof info.table === "string" ? info.table : "source";
             const rowsCount = typeof info.rows_count === "number" ? info.rows_count : 0;
-            setLatestStatus(`retrieve: ${table} -> ${rowsCount} rows`);
+            setLatestStatus(`[retrieve] ${table} rows=${rowsCount}`);
             hasUiUpdate = true;
           }
 
@@ -237,15 +241,13 @@ export function createFastAPIAdapter({
             if (shouldShowActivity) {
               const thoughtBlock = thinkingText.trim();
               const cursiveThoughtBlock = formatCursiveThinking(thoughtBlock);
-              const activityBlockParts = [
-                ...(latestStatusLine ? [`status: ${latestStatusLine}`] : []),
-                ...(cursiveThoughtBlock ? [`thinking:\n${cursiveThoughtBlock}`] : []),
-              ];
-              const activityBlock =
-                activityBlockParts.length > 0 ? activityBlockParts.map((line) => `- ${line}`).join("\n") : "";
-              if (activityBlock) {
-                displayText = `Agent activity (live):\n${activityBlock}\n\n${fullText}`;
-              }
+              const statusLine = latestStatusLine || "[working]";
+              const thinkingPanel = cursiveThoughtBlock || "_..._";
+              displayText =
+                `Agent activity (live):\n\n` +
+                `status: ${statusLine}\n\n` +
+                `thinking:\n${thinkingPanel}\n\n` +
+                `${fullText}`;
             }
             yield {
               content: [{ type: "text", text: displayText }],

@@ -9,6 +9,7 @@ import {
   useLocalRuntime,
 } from "@assistant-ui/react";
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import remarkGfm from "remark-gfm";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
@@ -24,7 +25,18 @@ type ChatInterfaceProps = {
 };
 
 const MarkdownText = memo(function MarkdownText() {
-  return <MarkdownTextPrimitive remarkPlugins={[remarkGfm]} />;
+  return (
+    <MarkdownTextPrimitive
+      remarkPlugins={[remarkGfm]}
+      components={{
+        a: ({ href, children, ...props }) => (
+          <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+            {children}
+          </a>
+        ),
+      }}
+    />
+  );
 });
 
 function CopyButton({ contentRef }: { contentRef: React.RefObject<HTMLDivElement | null> }) {
@@ -166,27 +178,80 @@ export function ChatInterface({ backendUrl, supabaseUrl, supabaseAnonKey }: Chat
             <ThreadPrimitive.Messages
               components={{
                 UserMessage: () => (
-                  <div className="mx-auto w-full max-w-5xl px-5 py-3">
-                    <div className="ml-auto w-fit max-w-[92%] rounded-2xl border border-white/10 bg-white/10 py-3 pl-4 pr-6 text-[15px] leading-7 text-gray-100">
+                  <div className="mx-auto w-full max-w-5xl px-6 py-3">
+                    <div className="ml-auto w-fit max-w-[88%] rounded-2xl border border-blue-300/20 bg-blue-500/10 py-3 pl-4 pr-6 text-left text-[15px] leading-7 text-gray-100">
                       <MessagePrimitive.Content />
                     </div>
                   </div>
                 ),
                 AssistantMessage: () => {
                   const contentRef = useRef<HTMLDivElement>(null);
+                  const [agentState, setAgentState] = useState("manager");
+
+                  useEffect(() => {
+                    const readStateFromContent = () => {
+                      const text = contentRef.current?.textContent || "";
+                      const match = text.match(/status:\s*([^\n]+)/i);
+                      if (match?.[1]) {
+                        setAgentState(match[1].trim());
+                      } else {
+                        setAgentState("manager");
+                      }
+                    };
+
+                    readStateFromContent();
+                    const observer = new MutationObserver(readStateFromContent);
+                    if (contentRef.current) {
+                      observer.observe(contentRef.current, {
+                        childList: true,
+                        subtree: true,
+                        characterData: true,
+                      });
+                    }
+                    return () => observer.disconnect();
+                  }, []);
 
                   return (
-                    <div className="mx-auto w-full max-w-5xl px-5 py-4">
-                      <div ref={contentRef} className="prose prose-sm max-w-none text-[15px] leading-7 text-gray-100">
-                        <MessagePrimitive.If assistant last hasContent={false}>
-                          <span className="inline-flex items-center" aria-label="Assistant is responding">
-                            <span className="thinking-dot h-2.5 w-2.5" aria-hidden="true" />
-                          </span>
-                        </MessagePrimitive.If>
-                        <MessagePrimitive.Content components={{ Text: MarkdownText }} />
-                      </div>
-                      <div className="mt-2 flex items-center gap-1">
-                        <CopyButton contentRef={contentRef} />
+                    <div className="mx-auto w-full max-w-5xl px-6 py-4">
+                      <div className="mr-0 flex w-auto flex-col items-start gap-3 sm:mr-6 sm:flex-row">
+                        <div className="mt-0 flex w-full shrink-0 flex-row items-center gap-2 sm:mt-1 sm:w-[88px] sm:flex-col sm:items-center sm:gap-0">
+                          <Image
+                            src="/manager.png"
+                            alt="manager"
+                            width={52}
+                            height={52}
+                            className="hidden rounded-full object-contain opacity-95 sm:block"
+                            style={{
+                              width: "clamp(42px, 4.2vw, 56px)",
+                              height: "clamp(42px, 4.2vw, 56px)",
+                            }}
+                            priority={false}
+                          />
+                          <div
+                            title={agentState}
+                            className="mt-0 max-w-full truncate text-left text-[10px] leading-4 text-gray-300 sm:mt-1 sm:max-w-[88px] sm:text-center"
+                          >
+                            {agentState}
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1 overflow-hidden rounded-2xl border border-emerald-300/20 bg-emerald-500/10 px-4 py-3">
+                          <div className="overflow-x-auto">
+                            <div
+                              ref={contentRef}
+                              className="prose prose-sm min-w-0 max-w-none text-left text-[15px] leading-7 text-gray-100 [&_*]:!text-left [&_table]:w-max [&_table]:min-w-full"
+                            >
+                              <MessagePrimitive.If assistant last hasContent={false}>
+                                <span className="inline-flex items-center" aria-label="Assistant is responding">
+                                  <span className="thinking-dot h-2.5 w-2.5" aria-hidden="true" />
+                                </span>
+                              </MessagePrimitive.If>
+                              <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+                            </div>
+                          </div>
+                          <div className="mt-2 flex items-center gap-1">
+                            <CopyButton contentRef={contentRef} />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
